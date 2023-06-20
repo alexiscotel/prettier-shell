@@ -1,8 +1,35 @@
 # Prettier shell
 
-PS1 prompt for ~/.bashrc file
+**PS1 prompt and script for editing ~/.bashrc file**
 
-## format
+## Script *prettier-shell*
+Script used to auto-configure .bashrc file with the above configuration.
+With flags, can be configure to add :
+- Hour
+- OS name
+- git branch
+- color username with profile type
+  - external in blue
+  - internal in orange
+  - root in red
+
+### How to use ?
+```sh
+prettier-shell --profile=internal --hour --os --git --alias
+```
+### Availables options
+	--ask       : let the script ask questions
+    --profile   : will show username with color 
+				(external = blue, internal = orange, root = red)
+    --hour      : insert hour in prompt (format hh:mm)
+    --os        : insert OS name in prompt
+    --git       : insert git current branch in prompt
+    --alias     : activate custom aliases, for ls and colors 
+				(create a .bash_aliases file in same dir)
+	--overwrite : if previous config exists, overwrite with the new one
+    --help      : show this message
+
+## PS1 format
 ### Date : `\A`
 - <span style="color: #808080">grey 80</span>
 	```bash

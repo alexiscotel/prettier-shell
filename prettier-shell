@@ -1,0 +1,608 @@
+#!/bin/bash
+
+####################
+## Prettier Shell Command
+## Author : Alexis Cotel
+## Version : 1.0.0
+## License : MIT
+## See https://github.com/alexiscotel/prettier-shell/README.md for more explainations
+####################
+
+# This script configure .bashrc file to get a prettier shell than the default one
+# It's a bash script with some functions to generate .bashrc configurations
+
+############
+## COLORS ##
+############
+nocolor='\033[0m'
+whiite='\033[0;97m'
+whiitebold='\033[0;1;97m'
+purple='\033[0;38;5;201m'
+blue='\033[0;38;5;45m'
+blueblink='\033[0;5;38;5;45m'
+darkblue='\033[0;38;5;27m'
+green='\033[0;32m'
+greendim='\033[0;3;32m'
+yellow='\033[0;38;5;178m'
+orange='\e[38;5;166;3m'
+orangeital='\e[0;3;38;5;166m'
+gray='\033[0;38;5;249m'
+graybold='\033[0;1;38;5;249m'
+graydim='\033[0;2;38;5;250m'
+red='\033[0;91m'
+## CUSTOM
+c__functionName='\033[0;38;5;45m'
+c__listHeader='\033[0;97m'
+c__listLine='\033[0;38;5;249m'
+
+ps1ColorExternal='\033[38;5;33;3m'
+ps1ColorInternal='\033[38;5;178;3m'
+ps1ColorRoot='\033[38;5;160;3m'
+
+################
+## PARAMETERS ##
+################
+commandPath=$0
+commandName=`basename "$commandPath"`
+
+arg_profile=""
+arg_needHour=false
+arg_needOS=false
+arg_needGit=false
+arg_needAlias=false
+
+
+##################
+## GLOBALS VARS ##
+# true is shell command and always return 0 
+# false always return 1
+##################
+declare -a g_profiles=("internal" "external" "root")
+current_user=$(whoami)
+
+# .bashrc file path
+bashrc_path=".bashrc"
+
+# starting line & ending line
+start_marked_line="### PERSONNAL CONFIGURATION"
+end_marked_line="### END PERSONNAL CONFIGURATION"
+
+ERROR=""
+
+########################
+## EMBEDDED FUNCTIONS ##
+########################
+
+# @Function : get OS name from /etc/os_release
+get_os_name() {
+    FILE=/etc/os-release
+    if test -f "$FILE"; then
+        awk -F= '$1=="ID" { print " "$2 ;}' "$FILE"
+    fi
+}
+function_code_os_name=$(declare -f get_os_name)
+ps1call_os_name='\[\e[38;5;230;2m\]$(get_os_name)\[\e[0m\]'
+
+# @Function : get current git branch
+parse_git_branch() {
+    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1) /'
+}
+function_code_parse_git_branch=$(declare -f parse_git_branch)
+ps1call_parse_git_branch='\[\e[0;3;38;5;45m\]$(parse_git_branch)\[\e[0m\]'
+
+
+###############
+## FUNCTIONS ##
+###############
+Debug() {
+	echo "arg_ask=$arg_ask"
+	echo "arg_profile=$arg_profile"
+	echo "arg_needHour=$arg_needHour"
+	echo "arg_needOS=$arg_needOS"
+	echo "arg_needGit=$arg_needGit"
+	echo "arg_needAlias=$arg_needAlias"
+}
+
+CheckProfileValidity() {
+	if [[ -z "$arg_profile" ]]; then
+		AskForProfile
+	elif [[ ! " ${g_profiles[@]} " =~ " ${arg_profile} " ]]; then
+		printf "${red}value of parameter 'profile' not valid${nocolor}\n"
+		AskForProfile
+	fi
+}
+
+EndOfScript() {
+	if [ -n "$ERROR" ]; then
+		printf "\n${red}Error(s) occured when ${commandName} execute. content of ERROR var : ${nocolor}\n"
+		printf "$ERROR"
+		printf "\n"
+	else
+		printf "\n${green}${commandName} execute with success${nocolor}.\n"
+
+		if [[ $arg_ask = true ]]; then
+			AskForSource
+			if [[ $do_source = true ]]; then
+				source $bashrc_path
+			fi
+		fi
+
+		# AskForShowingFileContent
+		# if [[ $review_conf = true ]]; then
+		# 	# cat $bashrc_path
+		# 	echo "$bashFile"
+		# fi
+	fi
+}
+
+#####################
+## PREVIOUS CONFIG ##
+#####################
+CheckIfPreviousConfig() {
+	prev_conf_exist=false
+	# Check if .bashrc file exists
+	if [[ -f "$bashrc_path" ]]; then
+		# Check if started line exists in file
+		if grep -q "$start_marked_line" "$bashrc_path"; then
+			prev_conf_exist=true
+		else
+			prev_conf_exist=false
+		fi
+	else
+		prev_conf_exist=false
+	fi
+}
+RemovePreviousConfig() {
+	# Check if .bashrc exist
+	if [[ -f "$bashrc_path" ]]; then
+		# Create a copy of .bashrc file
+		printf "${whiite}saving $bashrc_path ...${nocolor}\n"
+		cp "$bashrc_path" "$bashrc_path.bak"
+		
+		# delete lines between markers
+		sed -i.bak "/$start_marked_line/,/$end_marked_line/d" "$bashrc_path"
+		# delete blank lines at the end of file
+		sed -i.bak -e :a -e '/^\n*$/{$d;N;};/\n$/ba' "$bashrc_path"
+
+		printf "${green}previous configuration was removed with success${nocolor}\n"
+	else
+		printf "${orangeital}.bashrc file does not exists !${nocolor}\n"
+	fi
+}
+ManagePreviousConfig() {
+	CheckIfPreviousConfig
+	if [[ $prev_conf_exist = true ]]; then
+		printf "${orangeital}Previous configuration found in file.${nocolor}\n"
+		AskForOverwritePreviousConfig
+
+		if [[ $arg_overwrite = true ]]; then
+			RemovePreviousConfig
+		else
+			printf "${orangeital}Keeping previous configuration. script abort${nocolor}\n"
+			exit 0;
+		fi
+	fi
+}
+
+#########################
+## CONSTRUCT FUNCTIONS ##
+#########################
+
+ConstructFile_start() {
+	printf "${whiitebold}start construct configuration ...${nocolor}\n"
+	
+	bashFile=$'\n'"$start_marked_line for user $current_user (generate by $commandName script)"$'\n'
+	if [ "$arg_needOS" == true ]; then
+		bashFile+="# OS Distribution name"
+		bashFile+=$'\n'"$function_code_os_name"
+		bashFile+=$'\n'
+	fi
+
+	if [ "$arg_needGit" == true ]; then
+		bashFile+="# git branch"
+		bashFile+=$'\n'"$function_code_parse_git_branch"
+		bashFile+=$'\n'
+	fi
+	# printf "${whiitebold}construct first part of file end${nocolor}\n"
+}
+
+ConstructPS1Prompt() {
+	printf "${whiitebold}start construct PS1 prompt ...${nocolor}\n"
+
+	if [ "$arg_needHour" == true ]; then
+		ps1+="\[\e[38;5;251;1m\]\A\[\e[0m\] " # Heure
+	fi
+
+	if [ "$arg_needOS" == true ]; then
+		ps1+="$ps1call_os_name " # OS utilisé
+	fi
+
+	profilePS1=""
+	profileICO=""
+	case $arg_profile in
+		"external")
+			profilePS1='\[\e[38;5;33;3m\]\u\[\e[0m\]\[\e[97;1m\]@\[\e[0m\]\[\e[38;5;34m\]\H\[\e[0m\]'
+			profileICO='💨'
+			# break
+			;;
+		"internal")
+			profilePS1='\[\e[38;5;178m\]\u\[\e[0m\]\[\e[97;1m\]@\[\e[0m\]\[\e[38;5;34m\]\H\[\e[0m\]'
+			profileICO='💢'
+			# break
+			;;
+		"root")
+			profilePS1='\[\e[38;5;160;1;5m\]\u\[\e[0m\]\[\e[97;1m\]@\[\e[0m\]\[\e[38;5;34m\]\H\[\e[0m\]'
+			profileICO='💥'
+			# break
+			;;
+		*)
+			printf "profile has no corresponding case\n";
+			exit 1
+			# break
+			;;
+	esac
+	# if [[ -z "$profile" ]]; then
+	# 	printf "profile has no corresponding case\n";
+	# 	exit 1
+	# fi
+
+	ps1+="$profilePS1 "
+
+	ps1+="\[\e[0;38;5;184m\]\w\[\e[0m\] " # Path
+
+	# git branch
+	if [ "$arg_needGit" == true ]; then
+		ps1+="$ps1call_parse_git_branch " # Branche git
+	fi
+
+	ps1+=$'\n'"$profileICO "
+
+	printf "${green}PS1 prompt constructed${nocolor}\n"
+}
+
+ConstructFile_end() {
+	printf "${whiitebold}continue construct configuration ...${nocolor}\n"
+	bashFile+="# PROFILE $arg_profile"$'\n'
+	bashFile+="PS1='$ps1'"$'\n'
+	bashFile+="$end_marked_line"
+
+	printf "${green}construct configuration DONE.${nocolor}\n"
+}
+
+SendConstructToFile() {
+	printf "${whiitebold}insert configuration into .bashrc file${nocolor}\n"
+	# TODO: check if not already in file
+	# TODO: if already in file, find a way to delete and replace
+	echo "$bashFile" >> .bashrc
+
+	printf "${green}insertion to .bashrc file DONE.${nocolor}\n"
+}
+
+
+#######################
+## ALIASES FUNCTIONS ##
+#######################
+
+ConstructAliasesFile() {
+	if [ "$arg_needAlias" == true ]; then
+		printf "\n${whiitebold}start construct alias file ...${nocolor}\n"
+
+		aliasFile=".bash_aliases"
+
+		aliases+="## AUTO-GENERATED file by $commandName script for user $current_user"$'\n\n'
+		aliases+="# more ls aliases"$'\n'
+		aliases+="alias ll='ls -l'"$'\n'
+		aliases+="alias la='ls -A'"$'\n'
+		aliases+="alias l='ls -CF'"$'\n'
+		aliases+=$'\n'
+		aliases+="# colored lines"$'\n'
+		aliases+="if [ -x /usr/bin/dircolors ]; then"$'\n'
+		aliases+='	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"'$'\n'
+		aliases+="	alias ls='ls --color=auto'"$'\n'
+		aliases+="	alias dir='dir --color=auto'"$'\n'
+		aliases+="	alias vdir='vdir --color=auto'"$'\n'
+		aliases+=$'\n'
+		aliases+="	alias grep='grep --color=auto'"$'\n'
+		aliases+="	alias fgrep='fgrep --color=auto'"$'\n'
+		aliases+="	alias egrep='egrep --color=auto'"$'\n'
+		aliases+="fi"$'\n'
+
+		printf "${whiitebold}creating alias file ...${nocolor}\n"
+		echo "$aliases" > $aliasFile
+		printf "${green}alias file created${nocolor}\n"
+
+		printf "${whiitebold}construct alias file end${nocolor}\n\n"
+	fi
+}
+
+
+#####################
+## ASKED QUESTIONS ##
+#####################
+
+AskForQuestions() {
+	AskForProfile
+	AskForHour
+	AskForOS
+	AskForGitBranch
+	AskForAddAliases
+}
+
+AskForProfile() {
+	promptColor="${gray}"
+	printf "${gray}Select the desired profile${graydim}\n"
+	PS3="selection : "
+	select profile in "${g_profiles[@]}"; do
+		case $profile in
+			"external")
+				arg_profile="external"
+				promptColor="${ps1ColorExternal}"
+				break
+				;;
+			"internal")
+				arg_profile="internal"
+				promptColor="${ps1ColorInternal}"
+				break
+				;;
+			"root")
+				arg_profile="root"
+				promptColor="${ps1ColorRoot}"
+				break
+				;;
+			*)
+				printf "${red}Invalid option. Please select a valid profile (number between 1 and 3).${nocolor}"
+				;;
+		esac
+	done
+	printf "${green}Profile selected : ${promptColor}$arg_profile\n${nocolor}"
+}
+
+AskForHour() {
+	while true; do
+		printf "${gray}"
+		read -e -p "Insert hour in prompt ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_needHour=true
+				break
+			;;
+			[Nn]* ) 
+				arg_needHour=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForOS() {
+	while true; do
+		printf "${gray}"
+		read -e -p "Insert OS name in prompt ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_needOS=true
+				break
+			;;
+			[Nn]* ) 
+				arg_needOS=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForGitBranch() {
+	while true; do
+		printf "${gray}"
+		read -e -p "Insert git current branch name in prompt ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_needGit=true
+				break
+			;;
+			[Nn]* ) 
+				arg_needGit=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForAddAliases() {
+	while true; do
+		printf "${gray}"
+		read -e -p "Activate aliases (for ls and colors) ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_needAlias=true
+				break
+			;;
+			[Nn]* ) 
+				arg_needAlias=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForOverwritePreviousConfig() {
+	arg_overwrite=false
+	while true; do
+		printf "${gray}"
+		read -e -p "Overwrite ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_overwrite=true
+				break
+			;;
+			[Nn]* ) 
+				arg_overwrite=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForShowingFileContent() {
+	review_conf=false
+	while true; do
+		printf "${gray}"
+		read -e -p "Show new content ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				review_conf=true
+				break
+			;;
+			[Nn]* ) 
+				review_conf=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForSource() {
+	do_source=false
+	while true; do
+		printf "${gray}"
+		read -e -p "Want to source file to update prompt ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				do_source=true
+				break
+			;;
+			[Nn]* ) 
+				do_source=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+
+#############
+## HELPERS ##
+#############
+
+StartText () {
+printf "${darkblue}$commandName script ${nocolor}
+${blue}This script is made for easily configure .bashrc file to get a prettier shell than the default one.
+Follow the next steps to configure it !${nocolor}\n"
+}
+# HowToUse () {
+#     printf "\n${darkblue}How to use ?${gray}
+# ${commandName} --profile=internal --hour --os --git --alias
+# ${blue}Availables options :${gray}
+#     --ask     : let the script ask questions
+#     --profile : 'external' / 'internal' / 'root'
+#     --hour    : insert hour in prompt
+#     --os      : insert OS name in prompt
+#     --git     : insert git current branch in prompt
+#     --alias   : activate custom aliases (for ls and colors)
+#     --help    : show this message
+# ${nocolor}\n"
+# }
+
+HowToUse() {
+printf "\n${darkblue}How to use ?${gray}
+${commandName} --profile=internal --hour --os --git --alias${nocolor}
+${whiitebold}Parameters :${gray}
+    --ask       : let the script ask questions
+    --profile   : will show username with color 
+                (external = blue, internal = orange, root = red)
+    --hour      : insert hour in prompt (format hh:mm)
+    --os        : insert OS name in prompt
+    --git       : insert git current branch in prompt
+    --alias     : activate custom aliases, for ls and colors 
+                (create a .bash_aliases file in same dir)
+    --overwrite : if previous config exists, overwrite with the new one
+    --help      : show this message
+${nocolor}\n"
+}
+
+
+#####
+## START SCRIPT
+#####
+# clear
+StartText
+
+## check if ask question
+if [[ "$#" -eq 0 ]]; then
+	arg_ask=true
+else
+	arg_ask=false
+	while [[ "$#" -gt 0 ]]; do
+		case $1 in
+			--overwrite)
+				arg_overwrite=true
+				;;
+			--ask)
+				arg_ask=true
+				;;
+			--profile=*)
+				arg_profile="${1#*=}"
+				;;
+			--hour)
+				arg_needHour=true
+				;;
+			--os)
+				arg_needOS=true
+				;;
+			--git)
+				arg_needGit=true
+				;;
+			--alias)
+				arg_needAlias=true
+				;;
+			--help)
+				HowToUse
+				exit 0
+				;;
+			*)
+				echo "Paramètre non reconnu: $1"
+				;;
+		esac
+		shift
+	done
+fi
+
+# One or more parameters have been entered
+if [[ $arg_ask = true ]]; then
+	ManagePreviousConfig
+	AskForQuestions
+else
+	CheckProfileValidity
+
+	if [[ $arg_overwrite = true ]]; then
+		RemovePreviousConfig
+	else
+		printf "${orangeital}previous configuration founded.${nocolor}\n${whiitebold}With no ${orangeital}--overwrite flag${whiitebold},${whiitebold} script abort${nocolor}\n"
+		exit 0;
+	fi
+fi
+
+printf "\n"
+
+ConstructFile_start
+ConstructPS1Prompt
+ConstructFile_end
+SendConstructToFile
+
+ConstructAliasesFile
+
+EndOfScript
