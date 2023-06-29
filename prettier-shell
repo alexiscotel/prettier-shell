@@ -92,6 +92,11 @@ parse_git_branch() {
 function_code_parse_git_branch=$(declare -f parse_git_branch)
 ps1call_parse_git_branch='\[\e[0;3;38;5;45m\]$(parse_git_branch)\[\e[0m\]'
 
+get_host_ip() {
+	echo "$(last -i | head -n 1 | awk '{print $3}')"
+}
+function_code_host_ip=$(declare -f get_host_ip)
+ps1call_host_ip='\[\e[38;5;230;2m\]$(get_host_ip)\[\e[0m\]'
 
 ###############
 ## FUNCTIONS ##
@@ -120,7 +125,8 @@ EndOfScript() {
 		printf "$ERROR"
 		printf "\n"
 	else
-		printf "\n${green}${commandName} execute with success${nocolor}.\n"
+		printf "\n${green}${commandName} - End of command${nocolor}.\n"
+		printf "In order to view the change, use the following command : ${blue}source $bashrc_path${nocolor}\n"
 
 		# if [[ $arg_ask = true ]]; then
 		# 	AskForSource
@@ -205,6 +211,13 @@ ConstructFile_start() {
 		bashFile+=$'\n'"$function_code_parse_git_branch"
 		bashFile+=$'\n'
 	fi
+	
+	if [ "$arg_needIP" == true ]; then
+		bashFile+="# host ip"
+		bashFile+=$'\n'"$function_code_host_ip"
+		bashFile+=$'\n'
+	fi
+	echo "$ipcommand"
 	# printf "${whiitebold}construct first part of file end${nocolor}\n"
 }
 
@@ -217,15 +230,6 @@ ConstructPS1Prompt() {
 
 	if [ "$arg_needOS" == true ]; then
 		ps1+="$ps1call_os_name " # OS utilisé
-	fi
-
-	if [ "$arg_needIP" == true ]; then
-		# Check if ifconfig command exists
-		if last > /dev/null 2>&1; then
-			ps1+=$(last -i | head -n 1 | awk '{print $3}')
-		else	
-			printf "${red}command \"last\" not found. ${yellow}IP address not added${nocolor}\n"
-		fi
 	fi
 
 	profilePS1=""
@@ -261,6 +265,11 @@ ConstructPS1Prompt() {
 
 	ps1+="\[\e[0;38;5;184m\]\w\[\e[0m\] " # Path
 
+	if [ "$arg_needIP" == true ]; then
+		# Check if ifconfig command exists
+		ps1+="$ps1call_host_ip "
+	fi
+	
 	# git branch
 	if [ "$arg_needGit" == true ]; then
 		ps1+="$ps1call_parse_git_branch " # Branche git
