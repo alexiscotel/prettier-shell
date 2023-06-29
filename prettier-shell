@@ -263,13 +263,14 @@ ConstructPS1Prompt() {
 
 	ps1+="$profilePS1 "
 
-	ps1+="\[\e[0;38;5;184m\]\w\[\e[0m\] " # Path
-
 	if [ "$arg_needIP" == true ]; then
 		# Check if ifconfig command exists
 		ps1+="$ps1call_host_ip "
 	fi
-	
+
+	# PATH
+	ps1+="\[\e[0;38;5;184m\]\w\[\e[0m\] "
+
 	# git branch
 	if [ "$arg_needGit" == true ]; then
 		ps1+="$ps1call_parse_git_branch " # Branche git
