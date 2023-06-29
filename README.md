@@ -2,6 +2,9 @@
 
 **PS1 prompt and script for editing ~/.bashrc file**
 
+## TODO: 
+- script : put in `/etc/skel` .bashrc, .profile files
+
 ## Script *prettier-shell*
 Script used to auto-configure .bashrc file with the above configuration.
 With flags, can be configure to add :

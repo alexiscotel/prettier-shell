@@ -61,7 +61,7 @@ declare -a g_profiles=("internal" "external" "root")
 current_user=$(whoami)
 
 # .bashrc file path
-bashrc_path=".bashrc"
+bashrc_path=.bashrc
 
 # starting line & ending line
 start_marked_line="### PERSONNAL CONFIGURATION"
@@ -120,12 +120,12 @@ EndOfScript() {
 	else
 		printf "\n${green}${commandName} execute with success${nocolor}.\n"
 
-		if [[ $arg_ask = true ]]; then
-			AskForSource
-			if [[ $do_source = true ]]; then
-				source $bashrc_path
-			fi
-		fi
+		# if [[ $arg_ask = true ]]; then
+		# 	AskForSource
+		# 	if [[ $do_source = true ]]; then
+		# 		source $bashrc_path
+		# 	fi
+		# fi
 
 		# AskForShowingFileContent
 		# if [[ $review_conf = true ]]; then
