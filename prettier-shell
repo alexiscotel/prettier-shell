@@ -34,6 +34,7 @@ red='\033[0;91m'
 c__functionName='\033[0;38;5;45m'
 c__listHeader='\033[0;97m'
 c__listLine='\033[0;38;5;249m'
+c__error=$red
 
 ps1ColorExternal='\033[38;5;33;3m'
 ps1ColorInternal='\033[38;5;178;3m'
@@ -220,10 +221,10 @@ ConstructPS1Prompt() {
 
 	if [ "$arg_needIP" == true ]; then
 		# Check if ifconfig command exists
-		if command -v ifconfig >/dev/null 2>&1; then
-			ps1+=$(ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' | tail -1 | cut -d: -f2 | awk '{ print $1}')
+		if last > /dev/null 2>&1; then
+			ps1+=$(last -i | head -n 1 | awk '{print $3}')
 		else	
-			printf "${c__warning}ifconfig command not found. ${c__fctAction}IP address not added${nocolor}\n"
+			printf "${red}command \"last\" not found. ${yellow}IP address not added${nocolor}\n"
 		fi
 	fi
 
