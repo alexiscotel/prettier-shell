@@ -48,6 +48,7 @@ commandName=`basename "$commandPath"`
 arg_profile=""
 arg_needHour=false
 arg_needOS=false
+arg_needIP=false
 arg_needGit=false
 arg_needAlias=false
 
@@ -72,7 +73,7 @@ ERROR=""
 ########################
 ## EMBEDDED FUNCTIONS ##
 ########################
-
+HOSTIP=
 # @Function : get OS name from /etc/os_release
 get_os_name() {
     FILE=/etc/os-release
@@ -210,11 +211,20 @@ ConstructPS1Prompt() {
 	printf "${whiitebold}start construct PS1 prompt ...${nocolor}\n"
 
 	if [ "$arg_needHour" == true ]; then
-		ps1+="\[\e[38;5;251;1m\]\A\[\e[0m\] " # Heure
+		ps1+="\[\e[38;5;251;1m\]\A\[\e[0m\]" # Heure
 	fi
 
 	if [ "$arg_needOS" == true ]; then
 		ps1+="$ps1call_os_name " # OS utilisé
+	fi
+
+	if [ "$arg_needIP" == true ]; then
+		# Check if ifconfig command exists
+		if command -v ifconfig >/dev/null 2>&1; then
+			ps1+=$(ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' | tail -1 | cut -d: -f2 | awk '{ print $1}')
+		else	
+			printf "${c__warning}ifconfig command not found. ${c__fctAction}IP address not added${nocolor}\n"
+		fi
 	fi
 
 	profilePS1=""
@@ -324,6 +334,7 @@ AskForQuestions() {
 	AskForProfile
 	AskForHour
 	AskForOS
+	AskForIP
 	AskForGitBranch
 	AskForAddAliases
 }
@@ -387,6 +398,25 @@ AskForOS() {
 			;;
 			[Nn]* ) 
 				arg_needOS=false
+				break
+			;;
+			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
+		esac
+	done
+	printf "${nocolor}"
+}
+
+AskForIP() {
+	while true; do
+		printf "${gray}"
+		read -e -p "Insert host IP in prompt ? (Y/n) " -i "y" yn
+		case $yn in
+			[Yy]* ) 
+				arg_needIP=true
+				break
+			;;
+			[Nn]* ) 
+				arg_needIP=false
 				break
 			;;
 			* ) printf "${orangeital}Please answer yes or no\n${gray}";;
@@ -562,6 +592,9 @@ else
 				;;
 			--os)
 				arg_needOS=true
+				;;
+			--ip)
+				arg_needIP=true
 				;;
 			--git)
 				arg_needGit=true
