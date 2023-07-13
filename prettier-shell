@@ -63,7 +63,7 @@ declare -a g_profiles=("internal" "external" "root")
 current_user=$(whoami)
 
 # .bashrc file path
-bashrc_path=.bashrc
+bashrc_path="~/.bashrc"
 
 # starting line & ending line
 start_marked_line="### PERSONNAL CONFIGURATION"
@@ -96,7 +96,8 @@ get_host_ip() {
 	echo "$(last -i | head -n 1 | awk '{print $3}')"
 }
 function_code_host_ip=$(declare -f get_host_ip)
-ps1call_host_ip='\[\e[38;5;230;2m\]$(get_host_ip)\[\e[0m\]'
+# ps1call_host_ip='\[\e[38;5;230;2m\]$(get_host_ip)\[\e[0m\]'
+ps1call_host_ip='\[\e[38;5;230;2m\]$(ip route get 1.1.1.1 | awk -F"src " '"'"'NR == 1{ split($2, a," ");print a[1]}'"'"')\[\e[0m\]'
 
 ###############
 ## FUNCTIONS ##
